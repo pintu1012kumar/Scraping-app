@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer";
 import * as fuzzball from "fuzzball";
 
 interface Product {
@@ -10,6 +9,7 @@ interface Product {
   priceValue: number;
 }
 
+// New interface to describe the comparison result objects
 interface ComparisonResult {
   flipkart: Product;
   croma: Product;
@@ -26,34 +26,24 @@ const randomizedDelay = (min: number, max: number) => {
 function cleanPrice(price: string): number {
   if (!price) return 0;
   const num = price.replace(/[^\d]/g, "");
-  return parseInt(num) || 0;
-}
-
-// A single function to get all browser launch options,
-// correctly handling the async executablePath and type casting
-async function getLaunchOptions() {
-  const browserConfig: any = chromium; // Type cast the chromium object to any
-  return {
-    args: browserConfig.args,
-    defaultViewport: browserConfig.defaultViewport,
-    executablePath: await browserConfig.executablePath,
-    headless: browserConfig.headless,
-    ignoreHTTPSErrors: true,
-  };
+  return parseFloat(num) || 0;
 }
 
 async function scrapeFlipkart(productName: string): Promise<Product[]> {
+  const targetUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(productName)}`;
   let browser = null;
   try {
-    const launchOptions = await getLaunchOptions();
-    browser = await puppeteer.launch(launchOptions);
+    browser = await puppeteer.launch({
+      headless: true, // Updated to true for serverless deployment
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
     const page = await browser.newPage();
-    const targetUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(productName)}`;
     await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 60000 });
     await page.waitForSelector("div[data-id]", { timeout: 30000 });
     await randomizedDelay(1000, 3000);
 
     const products = await page.evaluate(() => {
+      // Use a known type instead of 'any'
       const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div[data-id]").forEach((el) => {
         const name =
@@ -82,18 +72,23 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
 }
 
 async function scrapeCroma(productName: string): Promise<Product[]> {
+  const targetUrl = `https://www.croma.com/searchB?q=${encodeURIComponent(productName)}%3Arelevance&text=${encodeURIComponent(productName)}`;
   let browser = null;
   try {
-    const launchOptions = await getLaunchOptions();
-    browser = await puppeteer.launch(launchOptions);
+    browser = await puppeteer.launch({
+      headless: true, // Updated to true for serverless deployment
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
     const context = browser.defaultBrowserContext();
     await context.overridePermissions("https://www.croma.com", ["geolocation"]);
+
     const page = await browser.newPage();
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36"
     );
     await page.setGeolocation({ latitude: 28.6315, longitude: 77.2167 });
-    const targetUrl = `https://www.croma.com/searchB?q=${encodeURIComponent(productName)}%3Arelevance&text=${encodeURIComponent(productName)}`;
+
     await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
 
     try {
@@ -109,6 +104,7 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
     await randomizedDelay(1500, 4000);
 
     const products = await page.evaluate(() => {
+      // Use a known type instead of 'any'
       const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div.cp-product").forEach((el) => {
         const name = el.querySelector(".product-title")?.textContent?.trim() || "N/A";
@@ -139,15 +135,14 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const query = searchParams.get("q") || "iPhone 16";
+  const query = searchParams.get("q") || "iPhone 16"; // fallback
   const start = Date.now();
 
   try {
-    const [flipkartItems, cromaItems] = await Promise.all([
-      scrapeFlipkart(query),
-      scrapeCroma(query),
-    ]);
+    const flipkartItems = await scrapeFlipkart(query);
+    const cromaItems = await scrapeCroma(query);
 
+    // Use the new, strong type for the matches array
     const matches: ComparisonResult[] = [];
     flipkartItems.forEach((fk) => {
       let bestMatch: Product | null = null;
@@ -179,7 +174,7 @@ export async function GET(req: Request) {
       comparisons: matches,
       duration: `${duration}ms`,
     });
-  } catch (err: unknown) {
+  } catch (err: unknown) { // Use 'unknown' instead of 'any'
     const duration = Date.now() - start;
     let errorMessage = "An unknown error occurred.";
     if (err instanceof Error) {
