@@ -9,6 +9,15 @@ interface Product {
   priceValue: number;
 }
 
+// New interface to describe the comparison result objects
+interface ComparisonResult {
+  flipkart: Product;
+  croma: Product;
+  score: number;
+  difference: number;
+  cheaper: "Croma" | "Flipkart" | "Same price";
+}
+
 const randomizedDelay = (min: number, max: number) => {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min;
   return new Promise((res) => setTimeout(res, ms));
@@ -34,7 +43,8 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
     await randomizedDelay(1000, 3000);
 
     const products = await page.evaluate(() => {
-      const res: any[] = [];
+      // Use a known type instead of 'any'
+      const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div[data-id]").forEach((el) => {
         const name =
           el.querySelector("div.KzDlHZ, div._4rR01T")?.textContent?.trim() || "N/A";
@@ -94,7 +104,8 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
     await randomizedDelay(1500, 4000);
 
     const products = await page.evaluate(() => {
-      const res: any[] = [];
+      // Use a known type instead of 'any'
+      const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div.cp-product").forEach((el) => {
         const name = el.querySelector(".product-title")?.textContent?.trim() || "N/A";
         const price = el.querySelector(".amount")?.textContent?.trim() || "N/A";
@@ -131,7 +142,8 @@ export async function GET(req: Request) {
     const flipkartItems = await scrapeFlipkart(query);
     const cromaItems = await scrapeCroma(query);
 
-    const matches: any[] = [];
+    // Use the new, strong type for the matches array
+    const matches: ComparisonResult[] = [];
     flipkartItems.forEach((fk) => {
       let bestMatch: Product | null = null;
       let bestScore = 0;
@@ -162,10 +174,14 @@ export async function GET(req: Request) {
       comparisons: matches,
       duration: `${duration}ms`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) { // Use 'unknown' instead of 'any'
     const duration = Date.now() - start;
+    let errorMessage = "An unknown error occurred.";
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    }
     return NextResponse.json(
-      { error: "Comparison failed", message: err.message, duration: `${duration}ms` },
+      { error: "Comparison failed", message: errorMessage, duration: `${duration}ms` },
       { status: 500 }
     );
   }
