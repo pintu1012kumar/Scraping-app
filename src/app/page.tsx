@@ -44,8 +44,12 @@ export default function Home() {
       }
       const responseData: ScrapedData = await response.json();
       setData(responseData);
-    } catch (e: any) {
-      setError(`Failed to fetch data: ${e.message}`);
+    } catch (e: unknown) {
+      let errorMessage = 'An unknown error occurred.';
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+      setError(`Failed to fetch data: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

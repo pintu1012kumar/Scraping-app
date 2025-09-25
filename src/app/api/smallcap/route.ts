@@ -8,8 +8,16 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 // A type-safe delay function to replace waitForTimeout
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+// Define the interface for the scraped product data
+interface ScrapedProduct {
+    name: string;
+    price: string;
+    link: string;
+    rating: string;
+}
+
 // Helper function for retry logic
-async function scrapeWithRetry(targetUrl: string, retries: number = 3): Promise<any[]> {
+async function scrapeWithRetry(targetUrl: string, retries: number = 3): Promise<ScrapedProduct[]> {
     for (let i = 0; i < retries; i++) {
         let browser = null;
         try {
@@ -24,25 +32,20 @@ async function scrapeWithRetry(targetUrl: string, retries: number = 3): Promise<
                 timeout: 60000
             });
 
-            // Wait for a more reliable selector or fallback
             await page.waitForSelector('div[data-id]', { timeout: 30000 });
 
-            // Use the type-safe delay function here
             console.log("Adding a 2-second delay to observe scraping...");
             await delay(2000);
 
             const products = await page.evaluate(() => {
-                const data: any[] = [];
-                const productElements = document.querySelectorAll('div[data-id]'); // Use reliable selector
+                // Use a strongly typed array
+                const data: ScrapedProduct[] = [];
+                const productElements = document.querySelectorAll('div[data-id]');
 
-                // Debug: Log the number of elements found
                 console.log(`Found ${productElements.length} product elements`);
-
-                // Debug: Log the HTML structure
                 console.log('HTML snippet:', document.body.innerHTML.substring(0, 1000));
 
                 productElements.forEach((el) => {
-                    // Updated selectors based on actual HTML structure
                     const name = el.querySelector('div.KzDlHZ, div._4rR01T')?.textContent?.trim() || "N/A";
                     const price = el.querySelector('div.Nx9bqj, div._30jeq3')?.textContent?.trim() || "N/A";
                     const link = el.querySelector('a.CGtC98')?.getAttribute('href');
@@ -58,16 +61,13 @@ async function scrapeWithRetry(targetUrl: string, retries: number = 3): Promise<
                     }
                 });
 
-                // Debug: Log the extracted data
                 console.log('Extracted products:', data);
-                // Print each product in terminal
                 data.forEach((product, index) => {
                     console.log(`Product ${index + 1}:`, product);
                 });
                 return data;
             });
 
-            // If no products found, log a warning
             if (products.length === 0) {
                 console.warn("No products extracted - selectors may need updating");
             }
@@ -89,7 +89,6 @@ export async function GET() {
     const targetUrl = "https://www.flipkart.com/search?q=iphone";
     const cacheKey = targetUrl;
 
-    // Check cache first
     const cachedData = cache.get(cacheKey);
     if (cachedData && (Date.now() - cachedData.timestamp < CACHE_TTL)) {
         console.log("Serving from cache");
@@ -105,24 +104,26 @@ export async function GET() {
         const duration = endTime - startTime;
         console.log(`Scraping completed in ${duration}ms, products found: ${products.length}`);
 
-        // Print products in terminal
         console.log('Final products data:');
         products.forEach((product, index) => {
             console.log(`Product ${index + 1}:`, JSON.stringify(product, null, 2));
         });
 
-        // Cache the result
         cache.set(cacheKey, { products, timestamp: Date.now() });
 
         return NextResponse.json({ products });
-    } catch (error: any) {
+    } catch (error: unknown) { // Use 'unknown' instead of 'any'
         const endTime = Date.now();
         const duration = endTime - startTime;
-        console.error(`Scraping failed after ${duration}ms:`, error.message);
+        let errorMessage = "An unknown error occurred.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        console.error(`Scraping failed after ${duration}ms:`, errorMessage);
 
         return NextResponse.json({
             error: "Failed to fetch data.",
-            details: error.message,
+            details: errorMessage,
             duration: `${duration}ms`
         }, { status: 500 });
     }
