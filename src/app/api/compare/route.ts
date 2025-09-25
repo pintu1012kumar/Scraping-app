@@ -34,7 +34,7 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
@@ -76,7 +76,7 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
