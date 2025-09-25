@@ -24,22 +24,26 @@ interface ScrapedData {
 }
 
 export default function Home() {
+  const [query, setQuery] = useState('');
   const [data, setData] = useState<ScrapedData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
+    if (!query.trim()) {
+      setError('Please enter a product name.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/compare');
+      const response = await fetch(`/api/compare?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const responseData: ScrapedData = await response.json();
-      
-      setData(responseData); 
-
+      setData(responseData);
     } catch (e: any) {
       setError(`Failed to fetch data: ${e.message}`);
     } finally {
@@ -47,26 +51,35 @@ export default function Home() {
     }
   };
 
-  const getPriceColor = (isCheaper: boolean) => {
-    return isCheaper ? 'text-blue-500 font-bold' : 'text-blue-500';
-  };
+  const getPriceColor = (isCheaper: boolean) =>
+    isCheaper ? 'text-blue-500 font-bold' : 'text-blue-500';
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-gray-100 text-gray-800">
-      <h1 className="text-4xl text-black font-bold mb-8">Product Price Comparison</h1>
-      
-      <button
-        onClick={fetchData}
-        disabled={loading}
-        className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? 'Fetching...' : 'Compare Products'}
-      </button>
+      <h1 className="text-4xl text-black font-bold mb-8">
+        Product Price Comparison
+      </h1>
 
-      {error && (
-        <p className="text-red-500 mt-4">{error}</p>
-      )}
-      
+      {/* Search bar */}
+      <div className="flex w-full max-w-lg space-x-2 mb-6">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Enter product name..."
+          className="flex-1 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="px-6 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Searching...' : 'Compare'}
+        </button>
+      </div>
+
+      {error && <p className="text-red-500 mt-2">{error}</p>}
+
       {data && (
         <div className="mt-8 w-full max-w-7xl space-y-8">
           <div className="text-center">
@@ -77,7 +90,7 @@ export default function Home() {
               Total fetch time: {data.duration}
             </p>
           </div>
-          
+
           <div className="overflow-x-auto bg-white rounded-lg shadow-md">
             <table className="min-w-full table-auto">
               <thead>
@@ -92,30 +105,37 @@ export default function Home() {
               <tbody className="text-gray-600 text-sm font-light">
                 {data.comparisons.length > 0 ? (
                   data.comparisons.map((item, index) => (
-                    <tr key={index} className="border-b border-gray-200 hover:bg-gray-100">
-                      <td className="py-4 px-6 text-left whitespace-nowrap">
-                        <span rel="noopener noreferrer" className="hover:underline text-black">
-                          {item.flipkart.name}
-                        </span>
+                    <tr
+                      key={index}
+                      className="border-b border-gray-200 hover:bg-gray-100"
+                    >
+                      <td className="py-4 px-6 text-left whitespace-nowrap text-black">
+                        {item.flipkart.name}
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <a href={item.flipkart.link} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Flipkart')}`}>
+                        <a
+                          href={item.flipkart.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Flipkart')}`}
+                        >
                           <span>{item.flipkart.price}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
                         </a>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <a href={item.croma.link} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Croma')}`}>
+                        <a
+                          href={item.croma.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Croma')}`}
+                        >
                           <span>{item.croma.price}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
                         </a>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        {item.difference > 0 ? `₹${Math.abs(item.difference)} more` : `₹${Math.abs(item.difference)} less`}
+                        {item.difference > 0
+                          ? `₹${Math.abs(item.difference)} more`
+                          : `₹${Math.abs(item.difference)} less`}
                       </td>
                       <td className="py-4 px-6 text-center font-bold">
                         {item.cheaper}
@@ -124,7 +144,12 @@ export default function Home() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-4 text-center text-gray-500">No matching products found.</td>
+                    <td
+                      colSpan={5}
+                      className="py-4 text-center text-gray-500"
+                    >
+                      No matching products found.
+                    </td>
                   </tr>
                 )}
               </tbody>
