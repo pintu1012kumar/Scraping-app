@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from "@sparticuz/chromium";
 
 // In-memory cache for scraped data
 const cache = new Map();
@@ -22,8 +23,9 @@ async function scrapeWithRetry(targetUrl: string, retries: number = 3): Promise<
         let browser = null;
         try {
             browser = await puppeteer.launch({
-                headless: false,
-                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                args: chromium.args,
+                executablePath: await chromium.executablePath(),
+                headless: true,
             });
             const page = await browser.newPage();
 

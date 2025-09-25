@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from "@sparticuz/chromium";
 
 // In-memory cache for scraped data
 const cache = new Map();
@@ -21,8 +22,9 @@ async function scrapeAmazon(productName: string): Promise<ScrapedProduct[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-      headless: false,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
     });
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
