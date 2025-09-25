@@ -35,9 +35,7 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
+
     });
     const page = await browser.newPage();
     await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 60000 });
@@ -78,9 +76,7 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
+
     });
 
     const context = browser.defaultBrowserContext();
