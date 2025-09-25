@@ -56,7 +56,7 @@ export default function Home() {
   };
 
   const getPriceColor = (isCheaper: boolean) =>
-    isCheaper ? 'text-blue-500 font-bold' : 'text-blue-500';
+    isCheaper ? 'text-black font-bold' : 'text-black';
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-gray-100 text-gray-800">
@@ -88,10 +88,16 @@ export default function Home() {
         <div className="mt-8 w-full max-w-7xl space-y-8">
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-2">
-              Comparison for: {data.searched}
+              {loading ? (
+                // Show 'Updating...' when loading is true
+                <span>Updating...</span>
+              ) : (
+                // Otherwise, show the comparison title
+                <span>Comparison for: {data.searched}</span>
+              )}
             </h2>
             <p className="text-sm text-gray-500">
-              Total fetch time: {data.duration}
+              Total fetch time: {(parseFloat(data.duration) / 1000).toFixed(2)} seconds
             </p>
           </div>
 
@@ -124,6 +130,7 @@ export default function Home() {
                           className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Flipkart')}`}
                         >
                           <span>{item.flipkart.price}</span>
+                          <span className="ml-1">↗</span>
                         </a>
                       </td>
                       <td className="py-4 px-6 text-center">
@@ -134,6 +141,7 @@ export default function Home() {
                           className={`flex items-center justify-center space-x-1 ${getPriceColor(item.cheaper === 'Croma')}`}
                         >
                           <span>{item.croma.price}</span>
+                          <span className="ml-1">↗</span>
                         </a>
                       </td>
                       <td className="py-4 px-6 text-center">
@@ -144,12 +152,13 @@ export default function Home() {
                       <td className="py-4 px-6 text-center font-bold">
                         {item.cheaper}
                       </td>
+                      
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="py-4 text-center text-gray-500"
                     >
                       No matching products found.

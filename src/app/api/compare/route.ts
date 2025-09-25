@@ -149,6 +149,7 @@ export async function GET(req: Request) {
       let bestScore = 0;
 
       cromaItems.forEach((cr) => {
+        // Calculate the score using fuzzball.token_set_ratio
         const score = fuzzball.token_set_ratio(fk.name, cr.name);
         if (score > bestScore) {
           bestScore = score;
