@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer";
 import * as fuzzball from "fuzzball";
 
 interface Product {
@@ -26,8 +25,8 @@ const randomizedDelay = (min: number, max: number) => {
 
 function cleanPrice(price: string): number {
   if (!price) return 0;
-  const num = price.replace(/[^\D]/g, "");
-  return parseInt(num) || 0;
+  const num = price.replace(/[^\d]/g, "");
+  return parseFloat(num) || 0;
 }
 
 async function scrapeFlipkart(productName: string): Promise<Product[]> {
@@ -35,7 +34,8 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-
+      headless: true, // Updated to true for serverless deployment
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
     await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 60000 });
@@ -76,7 +76,8 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
   let browser = null;
   try {
     browser = await puppeteer.launch({
-
+      headless: true, // Updated to true for serverless deployment
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const context = browser.defaultBrowserContext();
@@ -103,6 +104,7 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
     await randomizedDelay(1500, 4000);
 
     const products = await page.evaluate(() => {
+      // Use a known type instead of 'any'
       const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div.cp-product").forEach((el) => {
         const name = el.querySelector(".product-title")?.textContent?.trim() || "N/A";
@@ -133,13 +135,14 @@ async function scrapeCroma(productName: string): Promise<Product[]> {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const query = searchParams.get("q") || "iPhone 16";
+  const query = searchParams.get("q") || "iPhone 16"; // fallback
   const start = Date.now();
 
   try {
     const flipkartItems = await scrapeFlipkart(query);
     const cromaItems = await scrapeCroma(query);
 
+    // Use the new, strong type for the matches array
     const matches: ComparisonResult[] = [];
     flipkartItems.forEach((fk) => {
       let bestMatch: Product | null = null;
@@ -171,7 +174,7 @@ export async function GET(req: Request) {
       comparisons: matches,
       duration: `${duration}ms`,
     });
-  } catch (err: unknown) {
+  } catch (err: unknown) { // Use 'unknown' instead of 'any'
     const duration = Date.now() - start;
     let errorMessage = "An unknown error occurred.";
     if (err instanceof Error) {
