@@ -10,7 +10,6 @@ interface Product {
   priceValue: number;
 }
 
-// New interface to describe the comparison result objects
 interface ComparisonResult {
   flipkart: Product;
   croma: Product;
@@ -26,26 +25,35 @@ const randomizedDelay = (min: number, max: number) => {
 
 function cleanPrice(price: string): number {
   if (!price) return 0;
-  const num = price.replace(/[^\D]/g, "");
+  const num = price.replace(/[^\d]/g, "");
   return parseInt(num) || 0;
 }
 
+// A single function to get all browser launch options,
+// correctly handling the async executablePath and type casting
+async function getLaunchOptions() {
+  const browserConfig: any = chromium; // Type cast the chromium object to any
+  return {
+    args: browserConfig.args,
+    defaultViewport: browserConfig.defaultViewport,
+    executablePath: await browserConfig.executablePath,
+    headless: browserConfig.headless,
+    ignoreHTTPSErrors: true,
+  };
+}
+
 async function scrapeFlipkart(productName: string): Promise<Product[]> {
-  const targetUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(productName)}`;
   let browser = null;
   try {
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
+    const launchOptions = await getLaunchOptions();
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
+    const targetUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(productName)}`;
     await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 60000 });
     await page.waitForSelector("div[data-id]", { timeout: 30000 });
     await randomizedDelay(1000, 3000);
 
     const products = await page.evaluate(() => {
-      // Use a known type instead of 'any'
       const res: { name: string; price: string; link: string }[] = [];
       document.querySelectorAll("div[data-id]").forEach((el) => {
         const name =
@@ -74,24 +82,18 @@ async function scrapeFlipkart(productName: string): Promise<Product[]> {
 }
 
 async function scrapeCroma(productName: string): Promise<Product[]> {
-  const targetUrl = `https://www.croma.com/searchB?q=${encodeURIComponent(productName)}%3Arelevance&text=${encodeURIComponent(productName)}`;
   let browser = null;
   try {
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-
+    const launchOptions = await getLaunchOptions();
+    browser = await puppeteer.launch(launchOptions);
     const context = browser.defaultBrowserContext();
     await context.overridePermissions("https://www.croma.com", ["geolocation"]);
-
     const page = await browser.newPage();
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36"
     );
     await page.setGeolocation({ latitude: 28.6315, longitude: 77.2167 });
-
+    const targetUrl = `https://www.croma.com/searchB?q=${encodeURIComponent(productName)}%3Arelevance&text=${encodeURIComponent(productName)}`;
     await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
 
     try {
@@ -141,8 +143,10 @@ export async function GET(req: Request) {
   const start = Date.now();
 
   try {
-    const flipkartItems = await scrapeFlipkart(query);
-    const cromaItems = await scrapeCroma(query);
+    const [flipkartItems, cromaItems] = await Promise.all([
+      scrapeFlipkart(query),
+      scrapeCroma(query),
+    ]);
 
     const matches: ComparisonResult[] = [];
     flipkartItems.forEach((fk) => {
